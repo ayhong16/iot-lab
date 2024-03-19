@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "*.heex": "phoenix-heex",
+        "esp_lcd_panel_vendor.h": "c",
+        "esp_timer.h": "c",
+        "freertos.h": "c"
+    },
+    "idf.adapterTargetName": "esp32s3",
+    "idf.portWin": "COM3",
+    "idf.flashType": "UART"
+}

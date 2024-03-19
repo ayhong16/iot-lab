@@ -1,0 +1,23 @@
+{
+    "files.associations": {
+        "*.heex": "phoenix-heex",
+        "esp_lcd_panel_vendor.h": "c",
+        "esp_lcd_panel_ops.h": "c",
+        "esp_lcd_panel_io.h": "c",
+        "esp_lvgl_port.h": "c",
+        "esp_timer.h": "c",
+        "task.h": "c",
+        "i2c.h": "c",
+        "esp_log.h": "c",
+        "freertos.h": "c",
+        "esp_err.h": "c",
+        "stdio.h": "c",
+        "mpu6050.h": "c"
+    },
+    "idf.adapterTargetName": "esp32s3",
+    "idf.portWin": "COM3",
+    "idf.flashType": "UART",
+    "idf.openOcdConfigs": [
+        "board/esp32s3-builtin.cfg"
+    ]
+}

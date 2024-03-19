@@ -1,0 +1,15 @@
+{
+    "C_Cpp.errorSquiggles": "disabled",
+    "idf.adapterTargetName": "esp32s3",
+    "idf.portWin": "COM3",
+    "idf.flashType": "UART",
+    "idf.openOcdConfigs": [
+        "board/esp32s3-builtin.cfg"
+    ],
+    "files.associations": {
+        "*.heex": "phoenix-heex",
+        "esp_lvgl_port.h": "c",
+        "lvgl.h": "c",
+        "mpu6050.h": "c"
+    }
+}

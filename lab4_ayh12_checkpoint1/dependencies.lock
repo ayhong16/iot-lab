@@ -1,0 +1,15 @@
+dependencies:
+  idf:
+    component_hash: null
+    source:
+      type: idf
+    version: 5.1.2
+  lvgl__lvgl:
+    component_hash: null
+    source:
+      path: C:\Users\ayhon\Duke\ECE590\shared_components\lvgl__lvgl
+      type: local
+    version: 8.3.11
+manifest_hash: 1bdcb9f460afee27f6ba3c20a2d39c0e646eddf1b4c6d6420466c29c73d1554e
+target: esp32s3
+version: 1.0.0
