@@ -85,65 +85,25 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
 
-geolocation_t get_geolocation() {
-    char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER + 1] = {0};
-    esp_http_client_config_t config = {
-        .url = "http://ip-api.com/json",
-        .event_handler = _http_event_handler,
-        .user_data = local_response_buffer,  // Pass address of local buffer to get response
-        .disable_auto_redirect = true,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-
-    esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
-        ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %" PRId64,
-                 esp_http_client_get_status_code(client),
-                 esp_http_client_get_content_length(client));
-    } else {
-        ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+void cleanup_json_string(char *json_string) {
+    if (json_string != NULL) {
+        free(json_string);  // Free the memory allocated for the JSON string
     }
-    cJSON *root = cJSON_Parse(local_response_buffer);
-    if (root == NULL) {
-        ESP_LOGE(TAG, "Error parsing JSON: %s", cJSON_GetErrorPtr());
-    } else {
-        cJSON *status = cJSON_GetObjectItemCaseSensitive(root, "status");
-        if (cJSON_IsString(status) && (status->valuestring != NULL)) {
-            ESP_LOGI(TAG, "Status: %s", status->valuestring);
-        } else {
-            ESP_LOGE(TAG, "Failed to parse status");
-        }
-    }
-    geolocation_t geo;
-    cJSON *lat = cJSON_GetObjectItemCaseSensitive(root, "lat");
-    cJSON *lon = cJSON_GetObjectItemCaseSensitive(root, "lon");
-    cJSON *zip = cJSON_GetObjectItemCaseSensitive(root, "zip");
-    if (cJSON_IsNumber(lat)) {
-        geo.lat = (float)cJSON_GetNumberValue(lat);
-    }
-    if (cJSON_IsNumber(lon)) {
-        geo.lon = (float)cJSON_GetNumberValue(lon);
-    }
-    if (cJSON_IsString(zip)) {
-        char *str_zip = cJSON_GetStringValue(zip);
-        geo.zip = atoi(str_zip);
-    }
-
-    esp_http_client_cleanup(client);
-    cJSON_Delete(root);
-    return geo;
 }
 
-weather_t get_weather(geolocation_t geolocation) {
+void post_sensor_data(sensor_json_t data) {
     char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER + 1] = {0};
 
-    char query[256];
-    sprintf(query, "lat=%f&lon=%f&appid=%s", geolocation.lat, geolocation.lon, API_KEY);
+    // Serialize data
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "temp", data.temp);
+    cJSON_AddNumberToObject(root, "humd", data.humidity);
+    char *json_string = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
 
     esp_http_client_config_t config = {
-        .host = "api.openweathermap.org",
-        .path = "/data/2.5/weather",
-        .query = query,
+        .url = "http://127.0.0.1:5000/environmental_data",
+        .method = HTTP_METHOD_POST,
         .event_handler = _http_event_handler,
         .user_data = local_response_buffer,  // Pass address of local buffer to get response
         .disable_auto_redirect = true,
@@ -158,32 +118,7 @@ weather_t get_weather(geolocation_t geolocation) {
     } else {
         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
     }
-    cJSON *root = cJSON_Parse(local_response_buffer);
-    if (root == NULL) {
-        ESP_LOGE(TAG, "Error parsing JSON: %s", cJSON_GetErrorPtr());
-    }
 
-    weather_t weather;
-    cJSON *main = cJSON_GetObjectItemCaseSensitive(root, "main");
-    cJSON *wind = cJSON_GetObjectItemCaseSensitive(root, "wind");
-
-    cJSON *temp = cJSON_GetObjectItemCaseSensitive(main, "temp");
-    cJSON *humidity = cJSON_GetObjectItemCaseSensitive(main, "humidity");
-    cJSON *speed = cJSON_GetObjectItemCaseSensitive(wind, "speed");
-
-    if (cJSON_IsObject(main) && cJSON_IsObject(wind)) {
-        if (cJSON_IsNumber(temp)) {
-            weather.temp = ((float)cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(main, "temp")) - 273.15) * 9.0 / 5.0 + 32.0;
-        }
-        if (cJSON_IsNumber(humidity)) {
-            weather.humidity = (int)cJSON_GetNumberValue(humidity);
-        }
-        if (cJSON_IsNumber(speed)) {
-            weather.wind = (float)cJSON_GetNumberValue(speed);
-        }
-    }
-
+    cleanup_json_string(json_string);
     esp_http_client_cleanup(client);
-    cJSON_Delete(root);
-    return weather;
 }
