@@ -17,11 +17,10 @@ static lv_disp_t *disp_handle;
 static sensor_json_t weather;
 
 static void sensor_data_callback(void *arg) {
-    if (check_start()) {
-        SensorData data = read_sensor_data();
-        if (data.checksum == 0 && data.int_rh == 0 && data.int_temp == 0 && data.dec_temp == 0 && data.dec_rh == 0) {
-            return;
-        }
+    SensorData data = read_sensor_data();
+    if (data.error) {
+        printf("Invalid data. Don't update weather\n");
+    } else {
         weather.humidity = (data.int_rh + ((float)data.dec_rh / 10.0));
         weather.temp = (data.int_temp + ((float)data.dec_temp / 10.0));
     }
@@ -90,5 +89,5 @@ void app_main(void) {
     };
     esp_timer_handle_t sensor_timer;
     esp_timer_create(&sensor_timer_args, &sensor_timer);
-    esp_timer_start_periodic(sensor_timer, PERIOD);
+    esp_timer_start_periodic(sensor_timer, SECOND);
 }
