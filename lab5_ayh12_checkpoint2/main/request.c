@@ -2,7 +2,9 @@
 
 #define TAG "request"
 #define MAX_HTTP_OUTPUT_BUFFER 1024
-#define API_KEY "ad3088c1c365ea148e06b7e5ae8d30be"
+#define HOST "ec2-54-175-105-202.compute-1.amazonaws.com"
+#define PORT 5000
+#define PATH "/environmental_data"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -85,12 +87,6 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
 
-void cleanup_json_string(char *json_string) {
-    if (json_string != NULL) {
-        free(json_string);  // Free the memory allocated for the JSON string
-    }
-}
-
 void post_sensor_data(sensor_json_t data) {
     char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER + 1] = {0};
 
@@ -102,23 +98,29 @@ void post_sensor_data(sensor_json_t data) {
     cJSON_Delete(root);
 
     esp_http_client_config_t config = {
-        .url = "http://127.0.0.1:5000/environmental_data",
-        .method = HTTP_METHOD_POST,
+        .host = HOST,
+        .port = PORT,
+        .path = PATH,
+        .transport_type = HTTP_TRANSPORT_OVER_TCP,
         .event_handler = _http_event_handler,
         .user_data = local_response_buffer,  // Pass address of local buffer to get response
         .disable_auto_redirect = true,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
+    esp_http_client_set_method(client, HTTP_METHOD_POST);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_post_field(client, json_string, strlen(json_string));
+
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %" PRId64,
+        ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %" PRId64,
                  esp_http_client_get_status_code(client),
                  esp_http_client_get_content_length(client));
     } else {
-        ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
     }
 
-    cleanup_json_string(json_string);
+    free(json_string);
     esp_http_client_cleanup(client);
 }

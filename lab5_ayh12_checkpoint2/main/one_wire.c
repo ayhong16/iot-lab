@@ -26,19 +26,21 @@ bool check_start() {
     // Pull the GPIO pin high and wait for DHT11 response (20-40 microseconds)
     gpio_set_level(DHT_PIN, 1);
     gpio_set_direction(DHT_PIN, GPIO_MODE_INPUT);
-    while (gpio_get_level(DHT_PIN) == 1) {
-        continue;
-    }
+    us_delay(41);
 
-    while (gpio_get_level(DHT_PIN) == 0) {
-        continue;
+    uint64_t start = esp_timer_get_time();
+    while (!gpio_get_level(DHT_PIN)) {
+        if ((esp_timer_get_time() - start) > 100) {
+            return false;
+        }
     }
+    us_delay(80);
     return true;
 }
 
 uint64_t read_one_bit() {
     // wait for the wire to go high
-    while (gpio_get_level(DHT_PIN) == 0) {
+    while (!gpio_get_level(DHT_PIN)) {
         continue;
     }
 
@@ -48,7 +50,7 @@ uint64_t read_one_bit() {
     uint64_t end = 0;
     while (gpio_get_level(DHT_PIN)) {
         end = esp_timer_get_time();
-        if ((end - start) > 150) {
+        if ((end - start) > 80) {
             return 0;
         }
     }
@@ -56,19 +58,15 @@ uint64_t read_one_bit() {
 }
 
 SensorData read_sensor_data() {
-    gpio_set_direction(DHT_PIN, GPIO_MODE_INPUT);
     uint8_t data[5] = {0};
     int num_bits = 40;
     uint8_t checksum = 0;
-
-    while (gpio_get_level(DHT_PIN)) {
-        continue;
-    }
+    int error = 0;
 
     for (int i = 0; i < num_bits; i++) {
         uint64_t diff = read_one_bit();
         if (diff == 0) {
-            return (SensorData){0, 0, 0, 0, 0};
+            error = 1;
         }
         int bit = diff > 40 ? 1 : 0;
         data[i / 8] |= bit << (7 - (i % 8));
@@ -80,7 +78,15 @@ SensorData read_sensor_data() {
 
     // Verify checksum
     if (checksum != data[4]) {
-        return (SensorData){0, 0, 0, 0, 0};
+        error = 1;
+    }
+
+    if (error) {
+        data[0] = 0;
+        data[1] = 0;
+        data[2] = 0;
+        data[3] = 0;
+        data[4] = 0;
     }
 
     SensorData ret;
