@@ -1,28 +1,30 @@
 #include <stdio.h>
 
+#include "dht11.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "oled.h"
-#include "one_wire.h"
 #include "request.h"
 #include "wifi.h"
 
-#define PERIOD 200000
-#define SECOND 1000000
+#define POST_PERIOD 30000000
+#define SAMPLING_PERIOD 2600000
 
 static lv_disp_t *disp_handle;
 static sensor_json_t weather;
 
 static void sensor_data_callback(void *arg) {
-    SensorData data = read_sensor_data();
-    if (data.error) {
-        printf("Invalid data. Don't update weather\n");
+    dht11_reading data = DHT11_read();
+    printf("Temp: %.2f, Humudity %.d, Status: %d\n", data.temperature, data.humidity, data.status);
+
+    if (data.status == DHT11_OK) {
+        weather.humidity = data.humidity;
+        weather.temp = data.temperature;
     } else {
-        weather.humidity = (data.int_rh + ((float)data.dec_rh / 10.0));
-        weather.temp = (data.int_temp + ((float)data.dec_temp / 10.0));
+        printf("Invalid data. Don't update weather\n");
     }
 }
 
@@ -39,8 +41,8 @@ static void disp_timer_callback(void *arg) {
     char temp_str[50];
     char humidity_str[50];
 
-    sprintf(temp_str, "Temp: %.2fC", weather.temp);
-    sprintf(humidity_str, "RH: %.2f%%", weather.humidity);
+    sprintf(temp_str, "Temp: %.1fC", weather.temp);
+    sprintf(humidity_str, "RH: %d%%", weather.humidity);
 
     if (temp_label == NULL) {
         temp_label = lv_label_create(scr);
@@ -64,6 +66,7 @@ static void disp_timer_callback(void *arg) {
 void app_main(void) {
     disp_handle = oled_init();
     wifi_init();
+    DHT11_init(GPIO_NUM_7);
 
     // Create debounce timer at end of setup
     esp_timer_create_args_t disp_timer_args = {
@@ -72,7 +75,7 @@ void app_main(void) {
     };
     esp_timer_handle_t disp_timer;
     esp_timer_create(&disp_timer_args, &disp_timer);
-    esp_timer_start_periodic(disp_timer, SECOND);
+    esp_timer_start_periodic(disp_timer, POST_PERIOD);
 
     // Get sensor data every second
     esp_timer_create_args_t post_timer_args = {
@@ -81,7 +84,7 @@ void app_main(void) {
     };
     esp_timer_handle_t post_timer;
     esp_timer_create(&post_timer_args, &post_timer);
-    esp_timer_start_periodic(post_timer, SECOND);
+    esp_timer_start_periodic(post_timer, POST_PERIOD);
 
     esp_timer_create_args_t sensor_timer_args = {
         .callback = &sensor_data_callback,
@@ -89,5 +92,5 @@ void app_main(void) {
     };
     esp_timer_handle_t sensor_timer;
     esp_timer_create(&sensor_timer_args, &sensor_timer);
-    esp_timer_start_periodic(sensor_timer, SECOND);
+    esp_timer_start_periodic(sensor_timer, SAMPLING_PERIOD);
 }

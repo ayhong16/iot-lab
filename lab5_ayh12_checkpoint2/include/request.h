@@ -6,7 +6,7 @@
 
 typedef struct {
     float temp;
-    float humidity;
+    int humidity;
 } sensor_json_t;
 
 void post_sensor_data(sensor_json_t);
